@@ -2,7 +2,7 @@ use clap::Parser as ClapParser;
 use std::{collections::HashMap, fmt, fs, process::Command};
 
 #[derive(ClapParser, Debug)]
-#[command(name = "terbc", version, about = "Terbium compiler")]
+#[command(name = "ncc", version, about = "!C compiler")]
 struct Cli {
     input: String,
 
