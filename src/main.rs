@@ -346,28 +346,19 @@ impl Lexer {
                     }
                 }
 
-                if name == "int" {
-                    Token::Type(Type::Int)
-                } else if name == "char" {
-                    Token::Type(Type::Char)
-                } else if name == "str" {
-                    Token::Type(Type::Str)
-                } else if name == "bool" {
-                    Token::Type(Type::Bool)
-                } else if name == "true" || name == "false" {
-                    Token::Value(Value::Bool(name.parse().unwrap()))
-                } else if name == "if" {
-                    Token::If
-                } else if name == "else" {
-                    Token::Else
-                } else if name == "print" {
-                    Token::Print
-                } else if name == "push" {
-                    Token::Push
-                } else if name == "pop" {
-                    Token::Pop
-                } else {
-                    Token::Name(name)
+                match name.as_str() {
+                    "int" => Token::Type(Type::Int),
+                    "char" => Token::Type(Type::Char),
+                    "str" => Token::Type(Type::Str),
+                    "bool" => Token::Type(Type::Bool),
+                    "true" => Token::Value(Value::Bool(true)),
+                    "false" => Token::Value(Value::Bool(false)),
+                    "if" => Token::If,
+                    "else" => Token::Else,
+                    "print" => Token::Print,
+                    "push" => Token::Push,
+                    "pop" => Token::Pop,
+                    _ => Token::Name(name),
                 }
             }
 
