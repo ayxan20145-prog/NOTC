@@ -43,6 +43,7 @@ enum Token {
 
     Print,
     Push,
+    Pop,
 
     Semicolon,
     Eof,
@@ -66,6 +67,10 @@ enum Statement {
     },
     Push {
         value: Expression,
+    },
+    Pop {
+        typee: Type,
+        name: String,
     },
 }
 
@@ -359,6 +364,8 @@ impl Lexer {
                     Token::Print
                 } else if name == "push" {
                     Token::Push
+                } else if name == "pop" {
+                    Token::Pop
                 } else {
                     Token::Name(name)
                 }
@@ -406,6 +413,7 @@ impl Parser {
             Token::If => self.parse_if(),
             Token::Print => self.parse_print(),
             Token::Push => self.parse_push(),
+            Token::Pop => self.parse_pop(),
             other => panic!("expected statement found {:?}", other),
         }
     }
@@ -509,6 +517,32 @@ impl Parser {
         }
 
         Statement::Push { value }
+    }
+    fn parse_pop(&mut self) -> Statement {
+        self.advance();
+
+        let typee = match self.current() {
+            Token::Type(t) => {
+                self.advance();
+                t
+            }
+            _ => panic!("expected type"),
+        };
+
+        let name = match self.current() {
+            Token::Name(name) => {
+                self.advance();
+                name
+            }
+            _ => panic!("expected name"),
+        };
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Pop { typee, name }
     }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {
@@ -633,9 +667,12 @@ fn compile(program: &Program) -> String {
     let mut offset = 0;
 
     for statement in &program.statements {
-        if let Statement::Decleration { typee, name, .. } = statement {
-            offset += 8;
-            variables.insert(name.clone(), (offset, typee.clone()));
+        match statement {
+            Statement::Decleration { typee, name, .. } | Statement::Pop { typee, name } => {
+                offset += 8;
+                variables.insert(name.clone(), (offset, typee.clone()));
+            }
+            _ => {}
         }
     }
 
@@ -683,6 +720,16 @@ fn compile(program: &Program) -> String {
             Statement::Push { value } => {
                 compile_expression(&mut assembly, value, &variables, &strings);
                 assembly.push_str("    push rax\n");
+            }
+            Statement::Pop { typee, name } => {
+                assembly.push_str("    pop rax\n");
+                let (off, _) = &variables[name];
+                match typee {
+                    Type::Int => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
+                    Type::Char => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
+                    Type::Str => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
+                    Type::Bool => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
+                }
             }
         }
     }
