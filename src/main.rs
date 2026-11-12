@@ -1,6 +1,20 @@
 use clap::Parser as ClapParser;
 use std::{collections::HashMap, fmt, fs, process::Command};
 
+static KEYWORDS: &[(&str, Token)] = &[
+    ("int", Token::Type(Type::Int)),
+    ("char", Token::Type(Type::Char)),
+    ("str", Token::Type(Type::Str)),
+    ("bool", Token::Type(Type::Bool)),
+    ("true", Token::Value(Value::Bool(true))),
+    ("false", Token::Value(Value::Bool(false))),
+    ("if", Token::If),
+    ("else", Token::Else),
+    ("print", Token::Print),
+    ("push", Token::Push),
+    ("pop", Token::Pop),
+];
+
 #[derive(ClapParser, Debug)]
 #[command(name = "ncc", version, about = "!C compiler")]
 struct Cli {
@@ -346,19 +360,9 @@ impl Lexer {
                     }
                 }
 
-                match name.as_str() {
-                    "int" => Token::Type(Type::Int),
-                    "char" => Token::Type(Type::Char),
-                    "str" => Token::Type(Type::Str),
-                    "bool" => Token::Type(Type::Bool),
-                    "true" => Token::Value(Value::Bool(true)),
-                    "false" => Token::Value(Value::Bool(false)),
-                    "if" => Token::If,
-                    "else" => Token::Else,
-                    "print" => Token::Print,
-                    "push" => Token::Push,
-                    "pop" => Token::Pop,
-                    _ => Token::Name(name),
+                match check_keyword(&name) {
+                    Some(tok) => tok.clone(),
+                    None => Token::Name(name),
                 }
             }
 
@@ -858,4 +862,11 @@ fn collect_strings(program: &Program) -> Vec<Vec<u8>> {
     }
 
     strings
+}
+
+fn check_keyword(name: &str) -> Option<Token> {
+    KEYWORDS
+        .iter()
+        .find(|(kw, _)| *kw == name)
+        .map(|(_, tok)| tok.clone())
 }
