@@ -28,6 +28,7 @@ impl Parser {
             Token::Print => self.parse_print(),
             Token::Push => self.parse_push(),
             Token::Pop => self.parse_pop(),
+            Token::While => self.parse_while(),
             other => panic!("expected statement found {:?}", other),
         }
     }
@@ -157,6 +158,26 @@ impl Parser {
         }
 
         Statement::Pop { typee, name }
+    }
+    fn parse_while(&mut self) -> Statement {
+        self.advance();
+
+        let condition = self.parse_expression();
+
+        match self.current() {
+            Token::LBrace => self.advance(),
+            _ => panic!("expected '{{'"),
+        }
+
+        let mut body = Vec::new();
+
+        while self.current() != Token::RBrace {
+            body.push(self.parse_statement());
+        }
+
+        self.advance();
+
+        Statement::While { condition, body }
     }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {

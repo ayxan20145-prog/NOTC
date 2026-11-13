@@ -23,6 +23,10 @@ pub enum Statement {
         typee: Type,
         name: String,
     },
+    While {
+        condition: Expression,
+        body: Vec<Statement>,
+    },
 }
 
 #[derive(Debug)]

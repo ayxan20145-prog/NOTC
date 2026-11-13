@@ -130,6 +130,24 @@ fn compile_statement(
                 Type::Bool => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
             }
         }
+        Statement::While { condition, body } => {
+            let id = *label_id;
+            *label_id += 1;
+
+            assembly.push_str(&format!("    .__while_start_{}:\n", id));
+
+            compile_expression(assembly, condition, variables, strings);
+
+            assembly.push_str("    cmp rax, 0\n");
+            assembly.push_str(&format!("    je .__while_end_{}\n", id));
+
+            for stmt in body {
+                compile_statement(assembly, stmt, variables, strings, label_id);
+            }
+
+            assembly.push_str(&format!("    jmp .__while_start_{}\n", id));
+            assembly.push_str(&format!("    .__while_end_{}:\n", id));
+        }
     }
 }
 
@@ -239,6 +257,9 @@ fn collect_variables(
                     collect_variables(else_body, variables, offset);
                 }
             }
+            Statement::While { body, .. } => {
+                collect_variables(body, variables, offset);
+            }
             _ => {}
         }
     }
@@ -274,6 +295,9 @@ fn actually_collect_strings(statements: &[Statement], strings: &mut Vec<Vec<u8>>
                 if let Some(else_body) = else_body {
                     actually_collect_strings(else_body, strings);
                 }
+            }
+            Statement::While { body, .. } => {
+                actually_collect_strings(body, strings);
             }
             _ => {}
         }
