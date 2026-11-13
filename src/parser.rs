@@ -30,6 +30,7 @@ impl Parser {
             Token::Pop => self.parse_pop(),
             Token::While => self.parse_while(),
             Token::Break => self.parse_break(),
+            Token::Continue => self.parse_continue(),
             other => panic!("expected statement found {:?}", other),
         }
     }
@@ -189,6 +190,16 @@ impl Parser {
         }
 
         Statement::Break
+    }
+    fn parse_continue(&mut self) -> Statement {
+        self.advance();
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Continue
     }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {

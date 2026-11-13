@@ -28,6 +28,7 @@ pub enum Statement {
         body: Vec<Statement>,
     },
     Break,
+    Continue,
 }
 
 #[derive(Debug)]

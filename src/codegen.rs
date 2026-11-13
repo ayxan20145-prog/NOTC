@@ -158,6 +158,10 @@ fn compile_statement(
             let id = current_loop.expect("break outside loop\n");
             assembly.push_str(&format!("    jmp .__while_end_{}\n", id));
         }
+        Statement::Continue => {
+            let id = current_loop.expect("continue outside loop\n");
+            assembly.push_str(&format!("    jmp .__while_start_{}\n", id));
+        }
     }
 }
 
