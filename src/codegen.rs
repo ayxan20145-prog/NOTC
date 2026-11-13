@@ -10,15 +10,7 @@ pub fn compile(program: &Program) -> String {
     let mut variables: HashMap<String, (i32, Type)> = HashMap::new();
     let mut offset = 0;
 
-    for statement in &program.statements {
-        match statement {
-            Statement::Decleration { typee, name, .. } | Statement::Pop { typee, name } => {
-                offset += 8;
-                variables.insert(name.clone(), (offset, typee.clone()));
-            }
-            _ => {}
-        }
-    }
+    collect_variables(&program.statements, &mut variables, &mut offset);
 
     let stack_size = offset;
 
@@ -39,43 +31,15 @@ pub fn compile(program: &Program) -> String {
 
     assembly.push_str(&format!("    sub rsp, {}\n", stack_size));
 
+    let mut label_id: usize = 0;
     for statement in &program.statements {
-        match statement {
-            Statement::Decleration { typee, name, value } => {
-                compile_expression(&mut assembly, value, &variables, &strings);
-                let (off, _) = &variables[name];
-                match typee {
-                    Type::Int => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
-                    Type::Char => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
-                    Type::Str => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
-                    Type::Bool => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
-                }
-            }
-            Statement::If {
-                condition,
-                body,
-                else_body,
-            } => todo!(),
-            Statement::Print { value } => {
-                compile_expression(&mut assembly, value, &variables, &strings);
-                assembly.push_str("    mov rsi, rax\n");
-                assembly.push_str("    call print\n");
-            }
-            Statement::Push { value } => {
-                compile_expression(&mut assembly, value, &variables, &strings);
-                assembly.push_str("    push rax\n");
-            }
-            Statement::Pop { typee, name } => {
-                assembly.push_str("    pop rax\n");
-                let (off, _) = &variables[name];
-                match typee {
-                    Type::Int => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
-                    Type::Char => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
-                    Type::Str => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
-                    Type::Bool => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
-                }
-            }
-        }
+        compile_statement(
+            &mut assembly,
+            statement,
+            &variables,
+            &strings,
+            &mut label_id,
+        );
     }
 
     assembly.push_str("    mov rsp, rbp\n");
@@ -98,6 +62,75 @@ pub fn compile(program: &Program) -> String {
     assembly.push_str("    ret\n");
 
     assembly
+}
+
+fn compile_statement(
+    assembly: &mut String,
+    statement: &Statement,
+    variables: &HashMap<String, (i32, Type)>,
+    strings: &[Vec<u8>],
+    label_id: &mut usize,
+) {
+    match statement {
+        Statement::Decleration { typee, name, value } => {
+            compile_expression(assembly, value, &variables, &strings);
+            let (off, _) = &variables[name];
+            match typee {
+                Type::Int => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
+                Type::Char => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
+                Type::Str => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
+                Type::Bool => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
+            }
+        }
+        Statement::If {
+            condition,
+            body,
+            else_body,
+        } => {
+            let id = *label_id;
+            *label_id += 1;
+
+            compile_expression(assembly, condition, variables, strings);
+
+            assembly.push_str("     cmp rax, 0\n");
+            assembly.push_str(&format!("     je .__else_{}\n", id));
+
+            for stmt in body {
+                compile_statement(assembly, stmt, variables, strings, label_id);
+            }
+
+            assembly.push_str(&format!("    jmp .__end_{}\n", id));
+
+            assembly.push_str(&format!("    .__else_{}:\n", id));
+
+            if let Some(else_body) = else_body {
+                for stmt in else_body {
+                    compile_statement(assembly, stmt, variables, strings, label_id);
+                }
+            }
+
+            assembly.push_str(&format!("    .__end_{}:\n", id));
+        }
+        Statement::Print { value } => {
+            compile_expression(assembly, value, &variables, &strings);
+            assembly.push_str("    mov rsi, rax\n");
+            assembly.push_str("    call print\n");
+        }
+        Statement::Push { value } => {
+            compile_expression(assembly, value, &variables, &strings);
+            assembly.push_str("    push rax\n");
+        }
+        Statement::Pop { typee, name } => {
+            assembly.push_str("    pop rax\n");
+            let (off, _) = &variables[name];
+            match typee {
+                Type::Int => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
+                Type::Char => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
+                Type::Str => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
+                Type::Bool => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
+            }
+        }
+    }
 }
 
 fn compile_expression(
@@ -187,10 +220,38 @@ fn compile_expression(
     }
 }
 
+fn collect_variables(
+    statements: &[Statement],
+    variables: &mut HashMap<String, (i32, Type)>,
+    offset: &mut i32,
+) {
+    for statement in statements {
+        match statement {
+            Statement::Decleration { typee, name, .. } | Statement::Pop { typee, name } => {
+                *offset += 8;
+                variables.insert(name.clone(), (*offset, typee.clone()));
+            }
+            Statement::If {
+                body, else_body, ..
+            } => {
+                collect_variables(body, variables, offset);
+                if let Some(else_body) = else_body {
+                    collect_variables(else_body, variables, offset);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 fn collect_strings(program: &Program) -> Vec<Vec<u8>> {
     let mut strings = Vec::new();
+    actually_collect_strings(&program.statements, &mut strings);
+    strings
+}
 
-    for statement in &program.statements {
+fn actually_collect_strings(statements: &[Statement], strings: &mut Vec<Vec<u8>>) {
+    for statement in statements {
         match statement {
             Statement::Decleration {
                 value: Expression::Value(Value::Str(bytes)),
@@ -206,9 +267,15 @@ fn collect_strings(program: &Program) -> Vec<Vec<u8>> {
                     strings.push(bytes.clone());
                 }
             }
+            Statement::If {
+                body, else_body, ..
+            } => {
+                actually_collect_strings(body, strings);
+                if let Some(else_body) = else_body {
+                    actually_collect_strings(else_body, strings);
+                }
+            }
             _ => {}
         }
     }
-
-    strings
 }
