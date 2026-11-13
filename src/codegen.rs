@@ -32,6 +32,7 @@ pub fn compile(program: &Program) -> String {
     assembly.push_str(&format!("    sub rsp, {}\n", stack_size));
 
     let mut label_id: usize = 0;
+    let mut current_loop: Option<usize> = None;
     for statement in &program.statements {
         compile_statement(
             &mut assembly,
@@ -39,6 +40,7 @@ pub fn compile(program: &Program) -> String {
             &variables,
             &strings,
             &mut label_id,
+            &mut current_loop,
         );
     }
 
@@ -70,6 +72,7 @@ fn compile_statement(
     variables: &HashMap<String, (i32, Type)>,
     strings: &[Vec<u8>],
     label_id: &mut usize,
+    current_loop: &mut Option<usize>,
 ) {
     match statement {
         Statement::Decleration { typee, name, value } => {
@@ -96,7 +99,7 @@ fn compile_statement(
             assembly.push_str(&format!("     je .__else_{}\n", id));
 
             for stmt in body {
-                compile_statement(assembly, stmt, variables, strings, label_id);
+                compile_statement(assembly, stmt, variables, strings, label_id, current_loop);
             }
 
             assembly.push_str(&format!("    jmp .__end_{}\n", id));
@@ -105,7 +108,7 @@ fn compile_statement(
 
             if let Some(else_body) = else_body {
                 for stmt in else_body {
-                    compile_statement(assembly, stmt, variables, strings, label_id);
+                    compile_statement(assembly, stmt, variables, strings, label_id, current_loop);
                 }
             }
 
@@ -141,12 +144,19 @@ fn compile_statement(
             assembly.push_str("    cmp rax, 0\n");
             assembly.push_str(&format!("    je .__while_end_{}\n", id));
 
+            let saved = *current_loop;
+            *current_loop = Some(id);
             for stmt in body {
-                compile_statement(assembly, stmt, variables, strings, label_id);
+                compile_statement(assembly, stmt, variables, strings, label_id, current_loop);
             }
+            *current_loop = saved;
 
             assembly.push_str(&format!("    jmp .__while_start_{}\n", id));
             assembly.push_str(&format!("    .__while_end_{}:\n", id));
+        }
+        Statement::Break => {
+            let id = current_loop.expect("break outside loop\n");
+            assembly.push_str(&format!("    jmp .__while_end_{}\n", id));
         }
     }
 }

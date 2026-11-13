@@ -13,6 +13,7 @@ static KEYWORDS: &[(&str, Token)] = &[
     ("push", Token::Push),
     ("pop", Token::Pop),
     ("while", Token::While),
+    ("break", Token::Break),
 ];
 
 pub fn check_keyword(name: &str) -> Option<Token> {
@@ -51,6 +52,7 @@ pub enum Token {
     Push,
     Pop,
     While,
+    Break,
 
     Semicolon,
     Eof,

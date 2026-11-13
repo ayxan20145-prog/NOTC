@@ -27,6 +27,7 @@ pub enum Statement {
         condition: Expression,
         body: Vec<Statement>,
     },
+    Break,
 }
 
 #[derive(Debug)]
