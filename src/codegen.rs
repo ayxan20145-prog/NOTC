@@ -16,7 +16,19 @@ pub fn compile(program: &Program) -> String {
 
     let strings = collect_strings(program);
 
-    assembly.push_str("global _start\n");
+    let has_main = program.statements.iter().any(|s| match s {
+        Statement::Unfunction {
+            name,
+            body: Some(_),
+            ..
+        } => name == "main",
+        _ => false,
+    });
+
+    if has_main {
+        assembly.push_str("global _start\n");
+    }
+
     assembly.push_str("section .data\n");
     for (i, s) in strings.iter().enumerate() {
         let mut parts: Vec<String> = s.iter().map(|b| b.to_string()).collect();
@@ -25,12 +37,15 @@ pub fn compile(program: &Program) -> String {
     }
 
     assembly.push_str("section .text\n");
-    assembly.push_str("_start:\n");
-    assembly.push_str("    push rbp\n");
-    assembly.push_str("    mov rbp, rsp\n");
 
-    assembly.push_str(&format!("    sub rsp, {}\n", stack_size));
-    assembly.push_str("    call __ufn_main\n");
+    if has_main {
+        assembly.push_str("_start:\n");
+        assembly.push_str("    push rbp\n");
+        assembly.push_str("    mov rbp, rsp\n");
+
+        assembly.push_str(&format!("    sub rsp, {}\n", stack_size));
+        assembly.push_str("    call __ufn_main\n");
+    }
 
     let mut label_id: usize = 0;
     let mut current_loop: Option<usize> = None;
@@ -45,11 +60,13 @@ pub fn compile(program: &Program) -> String {
         );
     }
 
-    assembly.push_str("    pop rdi\n");
-    assembly.push_str("    mov rsp, rbp\n");
-    assembly.push_str("    pop rbp\n");
-    assembly.push_str("    mov rax, 60\n");
-    assembly.push_str("    syscall\n");
+    if has_main {
+        assembly.push_str("    pop rdi\n");
+        assembly.push_str("    mov rsp, rbp\n");
+        assembly.push_str("    pop rbp\n");
+        assembly.push_str("    mov rax, 60\n");
+        assembly.push_str("    syscall\n");
+    }
 
     assembly.push_str("print:\n");
     assembly.push_str(".loop:\n");
@@ -166,8 +183,9 @@ fn compile_statement(
         Statement::Unfunction {
             name,
             return_count,
-            body,
+            body: Some(body),
         } => {
+            assembly.push_str(&format!("global __ufn_{}\n", name));
             let id = *label_id;
             *label_id += 1;
 
@@ -188,6 +206,11 @@ fn compile_statement(
             emit_epilogue(assembly, *return_count);
 
             assembly.push_str(&format!("    __ufn_end_{}:\n", id));
+        }
+        Statement::Unfunction {
+            body: None, name, ..
+        } => {
+            assembly.push_str(&format!("extern __ufn_{}\n", name));
         }
         Statement::Call { name } => {
             assembly.push_str(&format!("    call __ufn_{}\n", name));
@@ -304,7 +327,9 @@ fn collect_variables(
             Statement::While { body, .. } => {
                 collect_variables(body, variables, offset);
             }
-            Statement::Unfunction { body, .. } => {
+            Statement::Unfunction {
+                body: Some(body), ..
+            } => {
                 collect_variables(body, variables, offset);
             }
             _ => {}
@@ -346,7 +371,9 @@ fn actually_collect_strings(statements: &[Statement], strings: &mut Vec<Vec<u8>>
             Statement::While { body, .. } => {
                 actually_collect_strings(body, strings);
             }
-            Statement::Unfunction { body, .. } => {
+            Statement::Unfunction {
+                body: Some(body), ..
+            } => {
                 actually_collect_strings(body, strings);
             }
             _ => {}

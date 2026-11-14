@@ -13,4 +13,7 @@ pub struct Cli {
 
     #[arg(short = 'o', long, default_value = "a.out")]
     pub output: String,
+
+    #[arg(short = 'l', long)]
+    pub link: Vec<String>,
 }

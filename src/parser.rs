@@ -31,8 +31,9 @@ impl Parser {
             Token::While => self.parse_while(),
             Token::Break => self.parse_break(),
             Token::Continue => self.parse_continue(),
-            Token::Ufn => self.parse_ufn(),
+            Token::Ufn => self.parse_ufn(false),
             Token::Call => self.parse_call(),
+            Token::Extern => self.parse_ufn(true),
             other => panic!("expected statement found {:?}", other),
         }
     }
@@ -203,7 +204,7 @@ impl Parser {
 
         Statement::Continue
     }
-    fn parse_ufn(&mut self) -> Statement {
+    fn parse_ufn(&mut self, external: bool) -> Statement {
         self.advance();
 
         let name = match self.current() {
@@ -222,6 +223,19 @@ impl Parser {
             _ => 0,
         };
 
+        if external {
+            match self.current() {
+                Token::Semicolon => self.advance(),
+                _ => panic!("expected ';'"),
+            }
+
+            return Statement::Unfunction {
+                name,
+                return_count,
+                body: None,
+            };
+        }
+
         match self.current() {
             Token::LBrace => self.advance(),
             _ => panic!("expected '{{'"),
@@ -237,7 +251,7 @@ impl Parser {
 
         Statement::Unfunction {
             name,
-            body,
+            body: Some(body),
             return_count,
         }
     }

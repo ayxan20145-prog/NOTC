@@ -32,7 +32,7 @@ pub enum Statement {
     Unfunction {
         name: String,
         return_count: usize,
-        body: Vec<Statement>,
+        body: Option<Vec<Statement>>,
     },
     Call {
         name: String,

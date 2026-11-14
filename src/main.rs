@@ -41,13 +41,16 @@ fn main() {
 
     if args.compile {
         fs::remove_file("output.tmp.asm").unwrap();
+        fs::rename("output.tmp.o", format!("{}.o", args.output)).unwrap();
         return;
     }
 
-    Command::new("ld")
-        .args(["output.tmp.o", "-o", &args.output])
-        .status()
-        .unwrap();
+    let mut ld = Command::new("ld");
+    ld.arg("output.tmp.o");
+    for obj in &args.link {
+        ld.arg(obj);
+    }
+    ld.args(["-o", &args.output]).status().unwrap();
 
     fs::remove_file("output.tmp.asm").unwrap();
     fs::remove_file("output.tmp.o").unwrap();
