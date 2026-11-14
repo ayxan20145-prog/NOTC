@@ -34,6 +34,7 @@ impl Parser {
             Token::Ufn => self.parse_ufn(false),
             Token::Call => self.parse_call(),
             Token::Extern => self.parse_ufn(true),
+            Token::Name(_) => self.parse_assignment(),
             other => panic!("expected statement found {:?}", other),
         }
     }
@@ -272,6 +273,29 @@ impl Parser {
         }
 
         Statement::Call { name }
+    }
+    fn parse_assignment(&mut self) -> Statement {
+        let name = match self.current() {
+            Token::Name(name) => {
+                self.advance();
+                name
+            }
+            _ => panic!("expected name"),
+        };
+
+        match self.current() {
+            Token::Equals => self.advance(),
+            _ => panic!("expected '='"),
+        }
+
+        let value = self.parse_expression();
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Assignment { name, value }
     }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {

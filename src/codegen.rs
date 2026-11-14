@@ -215,6 +215,20 @@ fn compile_statement(
         Statement::Call { name } => {
             assembly.push_str(&format!("    call __ufn_{}\n", name));
         }
+        Statement::Assignment { name, value } => {
+            compile_expression(assembly, value, variables, strings);
+
+            let (off, typee) = variables
+                .get(name)
+                .unwrap_or_else(|| panic!("undefined variable {}", name));
+
+            match typee {
+                Type::Int => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
+                Type::Char => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
+                Type::Str => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
+                Type::Bool => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
+            }
+        }
     }
 }
 
@@ -355,6 +369,10 @@ fn actually_collect_strings(statements: &[Statement], strings: &mut Vec<Vec<u8>>
             }
             | Statement::Push {
                 value: Expression::Value(Value::Str(bytes)),
+            }
+            | Statement::Assignment {
+                value: Expression::Value(Value::Str(bytes)),
+                ..
             } => {
                 if !strings.contains(bytes) {
                     strings.push(bytes.clone());

@@ -37,6 +37,10 @@ pub enum Statement {
     Call {
         name: String,
     },
+    Assignment {
+        name: String,
+        value: Expression,
+    },
 }
 
 #[derive(Debug)]
