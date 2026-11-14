@@ -1,0 +1,15 @@
+[tasks.default]
+alias = "install"
+
+[tasks.install]
+description = "install !C"
+script = [
+    "cargo build --release",
+    "sudo install -Dm755 target/release/ncc /usr/local/bin"
+]
+
+[tasks.uninstall]
+description = "uninstall !C"
+script = [
+    "sudo rm -f /usr/local/bin/ncc"
+]
