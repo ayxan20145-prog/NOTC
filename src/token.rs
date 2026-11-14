@@ -15,6 +15,8 @@ static KEYWORDS: &[(&str, Token)] = &[
     ("while", Token::While),
     ("break", Token::Break),
     ("continue", Token::Continue),
+    ("ufn", Token::Ufn),
+    ("call", Token::Call),
 ];
 
 pub fn check_keyword(name: &str) -> Option<Token> {
@@ -55,6 +57,8 @@ pub enum Token {
     While,
     Break,
     Continue,
+    Ufn,
+    Call,
 
     Semicolon,
     Eof,

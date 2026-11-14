@@ -29,6 +29,13 @@ pub enum Statement {
     },
     Break,
     Continue,
+    Unfunction {
+        name: String,
+        body: Vec<Statement>,
+    },
+    Call {
+        name: String,
+    },
 }
 
 #[derive(Debug)]

@@ -31,6 +31,8 @@ impl Parser {
             Token::While => self.parse_while(),
             Token::Break => self.parse_break(),
             Token::Continue => self.parse_continue(),
+            Token::Ufn => self.parse_ufn(),
+            Token::Call => self.parse_call(),
             other => panic!("expected statement found {:?}", other),
         }
     }
@@ -200,6 +202,50 @@ impl Parser {
         }
 
         Statement::Continue
+    }
+    fn parse_ufn(&mut self) -> Statement {
+        self.advance();
+
+        let name = match self.current() {
+            Token::Name(name) => {
+                self.advance();
+                name
+            }
+            _ => panic!("expected name"),
+        };
+
+        match self.current() {
+            Token::LBrace => self.advance(),
+            _ => panic!("expected '{{'"),
+        }
+
+        let mut body = Vec::new();
+
+        while self.current() != Token::RBrace {
+            body.push(self.parse_statement());
+        }
+
+        self.advance();
+
+        Statement::Unfunction { name, body }
+    }
+    fn parse_call(&mut self) -> Statement {
+        self.advance();
+
+        let name = match self.current() {
+            Token::Name(name) => {
+                self.advance();
+                name
+            }
+            _ => panic!("expected name"),
+        };
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Call { name }
     }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {

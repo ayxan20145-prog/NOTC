@@ -162,6 +162,31 @@ fn compile_statement(
             let id = current_loop.expect("continue outside loop\n");
             assembly.push_str(&format!("    jmp .__while_start_{}\n", id));
         }
+        Statement::Unfunction { name, body } => {
+            let id = *label_id;
+            *label_id += 1;
+
+            assembly.push_str(&format!("    jmp __ufn_end_{}\n", id));
+            assembly.push_str(&format!("    __ufn_{}:\n", name));
+
+            for statement in body {
+                compile_statement(
+                    assembly,
+                    statement,
+                    variables,
+                    strings,
+                    label_id,
+                    current_loop,
+                );
+            }
+
+            assembly.push_str("    ret\n");
+
+            assembly.push_str(&format!("    __ufn_end_{}:\n", id));
+        }
+        Statement::Call { name } => {
+            assembly.push_str(&format!("    call __ufn_{}\n", name));
+        }
     }
 }
 
@@ -274,6 +299,9 @@ fn collect_variables(
             Statement::While { body, .. } => {
                 collect_variables(body, variables, offset);
             }
+            Statement::Unfunction { body, .. } => {
+                collect_variables(body, variables, offset);
+            }
             _ => {}
         }
     }
@@ -311,6 +339,9 @@ fn actually_collect_strings(statements: &[Statement], strings: &mut Vec<Vec<u8>>
                 }
             }
             Statement::While { body, .. } => {
+                actually_collect_strings(body, strings);
+            }
+            Statement::Unfunction { body, .. } => {
                 actually_collect_strings(body, strings);
             }
             _ => {}
