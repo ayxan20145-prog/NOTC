@@ -96,15 +96,15 @@ fn compile_statement(
             compile_expression(assembly, condition, variables, strings);
 
             assembly.push_str("     cmp rax, 0\n");
-            assembly.push_str(&format!("     je .__else_{}\n", id));
+            assembly.push_str(&format!("     je .__if_else_{}\n", id));
 
             for stmt in body {
                 compile_statement(assembly, stmt, variables, strings, label_id, current_loop);
             }
 
-            assembly.push_str(&format!("    jmp .__end_{}\n", id));
+            assembly.push_str(&format!("    jmp .__if_end_{}\n", id));
 
-            assembly.push_str(&format!("    .__else_{}:\n", id));
+            assembly.push_str(&format!("    .__if_else_{}:\n", id));
 
             if let Some(else_body) = else_body {
                 for stmt in else_body {
@@ -112,7 +112,7 @@ fn compile_statement(
                 }
             }
 
-            assembly.push_str(&format!("    .__end_{}:\n", id));
+            assembly.push_str(&format!("    .__if_end_{}:\n", id));
         }
         Statement::Print { value } => {
             compile_expression(assembly, value, &variables, &strings);
