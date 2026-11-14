@@ -1,6 +1,6 @@
 use crate::{
     ast::{Expression, Program, Statement},
-    token::Token,
+    token::{Token, Value},
 };
 
 pub struct Parser {
@@ -214,6 +214,14 @@ impl Parser {
             _ => panic!("expected name"),
         };
 
+        let return_count = match self.current() {
+            Token::Value(Value::Int(n)) => {
+                self.advance();
+                n as usize
+            }
+            _ => 0,
+        };
+
         match self.current() {
             Token::LBrace => self.advance(),
             _ => panic!("expected '{{'"),
@@ -227,7 +235,11 @@ impl Parser {
 
         self.advance();
 
-        Statement::Unfunction { name, body }
+        Statement::Unfunction {
+            name,
+            body,
+            return_count,
+        }
     }
     fn parse_call(&mut self) -> Statement {
         self.advance();

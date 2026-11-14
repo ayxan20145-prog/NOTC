@@ -31,6 +31,7 @@ pub enum Statement {
     Continue,
     Unfunction {
         name: String,
+        return_count: usize,
         body: Vec<Statement>,
     },
     Call {

@@ -30,6 +30,7 @@ pub fn compile(program: &Program) -> String {
     assembly.push_str("    mov rbp, rsp\n");
 
     assembly.push_str(&format!("    sub rsp, {}\n", stack_size));
+    assembly.push_str("    call __ufn_main\n");
 
     let mut label_id: usize = 0;
     let mut current_loop: Option<usize> = None;
@@ -44,10 +45,10 @@ pub fn compile(program: &Program) -> String {
         );
     }
 
+    assembly.push_str("    pop rdi\n");
     assembly.push_str("    mov rsp, rbp\n");
     assembly.push_str("    pop rbp\n");
     assembly.push_str("    mov rax, 60\n");
-    assembly.push_str("    xor rdi, rdi\n");
     assembly.push_str("    syscall\n");
 
     assembly.push_str("print:\n");
@@ -162,7 +163,11 @@ fn compile_statement(
             let id = current_loop.expect("continue outside loop\n");
             assembly.push_str(&format!("    jmp .__while_start_{}\n", id));
         }
-        Statement::Unfunction { name, body } => {
+        Statement::Unfunction {
+            name,
+            return_count,
+            body,
+        } => {
             let id = *label_id;
             *label_id += 1;
 
@@ -180,7 +185,7 @@ fn compile_statement(
                 );
             }
 
-            assembly.push_str("    ret\n");
+            emit_epilogue(assembly, *return_count);
 
             assembly.push_str(&format!("    __ufn_end_{}:\n", id));
         }
@@ -347,4 +352,29 @@ fn actually_collect_strings(statements: &[Statement], strings: &mut Vec<Vec<u8>>
             _ => {}
         }
     }
+}
+
+fn emit_epilogue(assembly: &mut String, n: usize) {
+    const REGS: [&str; 8] = ["r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"];
+    if n > 8 {
+        panic!("too many return values (max 8)");
+    }
+
+    if n == 0 {
+        assembly.push_str("    ret\n");
+        return;
+    }
+
+    for i in 0..n {
+        assembly.push_str(&format!("    pop {}\n", REGS[i]));
+    }
+
+    assembly.push_str("    pop rcx\n");
+
+    for i in (0..n).rev() {
+        assembly.push_str(&format!("    push {}\n", REGS[i]));
+    }
+
+    assembly.push_str("    push rcx\n");
+    assembly.push_str("    ret\n");
 }
